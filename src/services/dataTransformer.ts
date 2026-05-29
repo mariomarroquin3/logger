@@ -29,18 +29,72 @@ export function parseUsuarios(snapshot: DataSnapshot): Usuario[] {
   }));
 }
 
+/** Normaliza cualquier formato de timestamp recibido (epoch seconds, epoch ms, ISO 8601, etc.)
+ * a una cadena ISO 8601 válida. */
+export function normalizeTimestamp(rawTimestamp: any, rawFecha?: string, rawHora?: string): string {
+  if (rawTimestamp === undefined || rawTimestamp === null) {
+    if (rawFecha) {
+      const hora = rawHora || '00:00:00';
+      const date = new Date(`${rawFecha}T${hora}`);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    return new Date().toISOString();
+  }
+
+  // 1. Si es un número (epoch seconds o epoch milliseconds)
+  if (typeof rawTimestamp === 'number') {
+    const isSeconds = rawTimestamp < 99999999999;
+    const ms = isSeconds ? rawTimestamp * 1000 : rawTimestamp;
+    return new Date(ms).toISOString();
+  }
+
+  // 2. Si es una cadena
+  if (typeof rawTimestamp === 'string') {
+    if (/^\d+$/.test(rawTimestamp)) {
+      const num = parseInt(rawTimestamp, 10);
+      const isSeconds = num < 99999999999;
+      const ms = isSeconds ? num * 1000 : num;
+      return new Date(ms).toISOString();
+    }
+
+    if (rawTimestamp.includes('T')) {
+      const date = new Date(rawTimestamp);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawTimestamp)) {
+      const hora = rawHora || '00:00:00';
+      const date = new Date(`${rawTimestamp}T${hora}`);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+
+    const date = new Date(rawTimestamp);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+  }
+
+  return new Date().toISOString();
+}
+
 /** Convierte el snapshot de eventos_acceso en un array tipado,
  *  ordenado descendente (más reciente primero) */
 export function parseEventos(snapshot: DataSnapshot): EventoAcceso[] {
   if (!snapshot.exists()) return [];
-  const raw = snapshot.val() as Record<string, Omit<EventoAcceso, 'id'>>;
+  const raw = snapshot.val() as Record<string, any>;
   const eventos = Object.entries(raw).map(([id, data]) => ({
     id,
     uid:       data.uid ?? '',
     nombre:    data.nombre ?? 'Desconocido',
     tipo:      data.tipo ?? 'entrada',
     resultado: data.resultado ?? 'inconsistente',
-    timestamp: data.timestamp ?? new Date().toISOString(),
+    timestamp: normalizeTimestamp(data.timestamp, data.fecha, data.hora),
   })) as EventoAcceso[];
 
   // Descendente: más reciente primero
