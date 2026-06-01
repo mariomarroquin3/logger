@@ -1,6 +1,7 @@
 // ============================================================
 // auth/AuthContext.tsx
-// Contexto de Autenticación: OAuth con Google/GitHub + Whitelist en RTDB
+// Contexto de Autenticación: OAuth Google + Email/Password
+// Whitelist en RTDB (usuarios_dashboard/{uid})
 // ============================================================
 import {
   createContext,
@@ -12,23 +13,24 @@ import {
 import {
   onAuthStateChanged,
   signInWithPopup,
+  signInWithEmailAndPassword,
   GoogleAuthProvider,
-  GithubAuthProvider,
   signOut,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 
 import { auth, db, isFirebaseConfigured } from '../firebase/config';
-import type { AuthUser } from '../types';
+import type { AuthUser, DashboardUser } from '../types';
 
 interface AuthContextValue {
   user: AuthUser | null;
+  dashboardUser: DashboardUser | null;
   loading: boolean;
   error: string | null;
   unauthorizedUser: { uid: string; email: string | null } | null;
   loginWithGoogle: () => Promise<void>;
-  loginWithGithub: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   clearUnauthorizedUser: () => void;
@@ -49,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return null;
   });
+  const [dashboardUser, setDashboardUser] = useState<DashboardUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unauthorizedUser, setUnauthorizedUser] = useState<{ uid: string; email: string | null } | null>(null);
@@ -62,17 +65,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!snapshot.exists()) {
         setUnauthorizedUser({ uid: firebaseUser.uid, email: firebaseUser.email });
         await signOut(auth);
-        setError('Acceso denegado: Su cuenta no está registrada en la lista de usuarios autorizados.');
+        setError('Acceso denegado: Su cuenta no está registrada en el dashboard.');
         setUser(null);
+        setDashboardUser(null);
         return false;
       }
 
-      const data = snapshot.val();
+      const data = snapshot.val() as DashboardUser;
       if (data.activo !== true) {
         setUnauthorizedUser({ uid: firebaseUser.uid, email: firebaseUser.email });
         await signOut(auth);
         setError('Acceso denegado: Su cuenta se encuentra actualmente desactivada.');
         setUser(null);
+        setDashboardUser(null);
         return false;
       }
 
@@ -80,22 +85,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authUser: AuthUser = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
-        displayName: firebaseUser.displayName,
+        displayName: data.nombre || firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
         role: data.rol || 'viewer',
         activo: true,
-        mfaVerified: false, // Stub para TOTP
+        mfaVerified: false,
       };
 
       setUser(authUser);
+      setDashboardUser(data);
       setError(null);
       setUnauthorizedUser(null);
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al consultar whitelist:', err);
       await signOut(auth);
       setError('Error al verificar los permisos en la base de datos.');
       setUser(null);
+      setDashboardUser(null);
       return false;
     }
   };
@@ -112,15 +119,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await checkWhitelistAndSetUser(firebaseUser);
       } else {
         setUser(null);
+        setDashboardUser(null);
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Métodos OAuth ──────────────────────────────────────────
-
+  // ─── Google OAuth ───────────────────────────────────────────
   const loginWithGoogle = async () => {
     setLoading(true);
     setError(null);
@@ -132,13 +140,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const demoUser: AuthUser = {
         uid: 'demo-google-oauth-uid',
         email: 'mario.demo@logger.com',
-        displayName: 'Mario Marroquín',
-        photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+        displayName: 'Mario Demo',
+        photoURL: null,
         role: 'admin',
         activo: true,
         mfaVerified: false,
       };
+      const demoDashboardUser: DashboardUser = {
+        activo: true,
+        email: 'mario.demo@logger.com',
+        nombre: 'Mario Demo',
+        rol: 'admin',
+      };
       setUser(demoUser);
+      setDashboardUser(demoDashboardUser);
       localStorage.setItem('rfid_demo_user', JSON.stringify(demoUser));
       setLoading(false);
       return;
@@ -150,9 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result.user) {
         await checkWhitelistAndSetUser(result.user);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Google Auth Error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
+      const firebaseErr = err as { code?: string };
+      if (firebaseErr.code !== 'auth/popup-closed-by-user') {
         setError('Ocurrió un error al iniciar sesión con Google.');
       }
     } finally {
@@ -160,50 +176,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginWithGithub = async () => {
+  // ─── Email / Password ───────────────────────────────────────
+  const loginWithEmail = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     setUnauthorizedUser(null);
 
     if (!isFirebaseConfigured) {
-      // Simulación en Modo Demo
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const demoUser: AuthUser = {
-        uid: 'demo-github-oauth-uid',
-        email: 'github.user@logger.com',
-        displayName: 'Github Tester',
-        photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+        uid: 'demo-email-uid',
+        email,
+        displayName: email.split('@')[0],
+        photoURL: null,
         role: 'viewer',
         activo: true,
         mfaVerified: false,
       };
+      const demoDashboardUser: DashboardUser = {
+        activo: true,
+        email,
+        nombre: email.split('@')[0],
+        rol: 'viewer',
+      };
       setUser(demoUser);
+      setDashboardUser(demoDashboardUser);
       localStorage.setItem('rfid_demo_user', JSON.stringify(demoUser));
       setLoading(false);
       return;
     }
 
     try {
-      const provider = new GithubAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithEmailAndPassword(auth, email, password);
       if (result.user) {
         await checkWhitelistAndSetUser(result.user);
       }
-    } catch (err: any) {
-      console.error('Github Auth Error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Ocurrió un error al iniciar sesión con GitHub.');
+    } catch (err: unknown) {
+      console.error('Email Auth Error:', err);
+      const firebaseErr = err as { code?: string };
+      if (firebaseErr.code === 'auth/user-not-found' || firebaseErr.code === 'auth/wrong-password' || firebaseErr.code === 'auth/invalid-credential') {
+        setError('Correo electrónico o contraseña incorrectos.');
+      } else if (firebaseErr.code === 'auth/too-many-requests') {
+        setError('Demasiados intentos fallidos. Por favor intente más tarde.');
+      } else {
+        setError('Ocurrió un error al iniciar sesión.');
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Logout ─────────────────────────────────────────────────
   const logout = async () => {
     setLoading(true);
     if (!isFirebaseConfigured) {
-      // Logout en Modo Demo
       setUser(null);
+      setDashboardUser(null);
       localStorage.removeItem('rfid_demo_user');
       setLoading(false);
       return;
@@ -212,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signOut(auth);
       setUser(null);
+      setDashboardUser(null);
       setUnauthorizedUser(null);
     } catch (err) {
       console.error('Logout error:', err);
@@ -225,11 +254,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     user,
+    dashboardUser,
     loading,
     error,
     unauthorizedUser,
     loginWithGoogle,
-    loginWithGithub,
+    loginWithEmail,
     logout,
     clearError,
     clearUnauthorizedUser,

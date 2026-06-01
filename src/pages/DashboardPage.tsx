@@ -1,6 +1,6 @@
 // ============================================================
 // pages/DashboardPage.tsx
-// Panel principal con 6 KPI cards + estado maqueta
+// Panel principal con KPI cards + estado maqueta + alertas
 // ============================================================
 import {
   Users,
@@ -8,8 +8,11 @@ import {
   LogIn,
   LogOut,
   Activity,
+  ShieldCheck,
 } from 'lucide-react';
 import { useDashboard } from '../context/DashboardProvider';
+import { useUsuariosRfid } from '../hooks/useUsuariosRfid';
+import { useOperationalAlerts } from '../hooks/useOperationalAlerts';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { DoorStatusCard } from '../components/dashboard/DoorStatusCard';
 import { AlarmStatusCard } from '../components/dashboard/AlarmStatusCard';
@@ -28,6 +31,9 @@ export function DashboardPage() {
     salidasHoy,
   } = useDashboard();
 
+  const { usuarios: rfidUsers, loading: rfidLoading } = useUsuariosRfid();
+  const { alerts } = useOperationalAlerts(rfidUsers, eventos);
+
   const isLoading = loading.estado || loading.usuarios || loading.eventos;
   const hasError  = error.estado || error.usuarios || error.eventos;
 
@@ -41,6 +47,11 @@ export function DashboardPage() {
 
   // Últimos 5 eventos para la actividad reciente
   const recentEvents = eventos.slice(0, 5);
+
+  const activeRfidCount = rfidUsers.filter((u) => u.activo).length;
+  const pendingRfidCount = rfidUsers.filter(
+    (u) => u.rfid_status === 'pendiente' || u.rfid_status === 'sin_asignar'
+  ).length;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -64,7 +75,7 @@ export function DashboardPage() {
       {/* ── KPI Metrics ────────────────────────────────────── */}
       <div>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Métricas
+          Monitoreo de Accesos
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
@@ -98,6 +109,39 @@ export function DashboardPage() {
             icon={<LogOut className="h-5 w-5 text-purple-400" />}
             iconBg="bg-purple-500/10"
             loading={isLoading}
+          />
+        </div>
+      </div>
+
+      {/* ── Métricas de Credenciales ──────────────────────── */}
+      <div>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
+          Gestión de Credenciales RFID
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <MetricCard
+            title="Usuarios Activos"
+            value={activeRfidCount}
+            subtitle="Credenciales habilitadas"
+            icon={<UserCheck className="h-5 w-5 text-emerald-400" />}
+            iconBg="bg-emerald-500/10"
+            loading={isLoading || rfidLoading}
+          />
+          <MetricCard
+            title="Pendientes RFID"
+            value={pendingRfidCount}
+            subtitle="Por asignar o programar"
+            icon={<Activity className="h-5 w-5 text-amber-400" />}
+            iconBg="bg-amber-500/10"
+            loading={isLoading || rfidLoading}
+          />
+          <MetricCard
+            title="Inconsistencias"
+            value={alerts.length}
+            subtitle="Alertas operacionales activas"
+            icon={<ShieldCheck className="h-5 w-5 text-rose-400" />}
+            iconBg="bg-rose-500/10"
+            loading={isLoading || rfidLoading}
           />
         </div>
       </div>

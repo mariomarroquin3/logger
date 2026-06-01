@@ -11,8 +11,10 @@ import {
   Wifi,
   X,
   ShieldCheck,
+  KanbanSquare,
 } from 'lucide-react';
 import { useDashboard } from '../../context/DashboardProvider';
+import { useAuth } from '../../auth/AuthContext';
 
 interface SidebarProps {
   open: boolean;
@@ -28,6 +30,7 @@ const NAV_ITEMS = [
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { isDemoMode, setIsDemoMode } = useDashboard();
+  const { user } = useAuth();
   return (
     <>
       {/* Overlay móvil */}
@@ -98,6 +101,58 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               )}
             </NavLink>
           ))}
+
+          {user?.role === 'admin' && (
+            <div className="pt-4 mt-4 border-t border-surface-border/50 space-y-1">
+              <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">
+                Administración
+              </p>
+              <NavLink
+                to="/admin/usuarios-rfid"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150
+                  ${
+                    isActive
+                      ? 'bg-accent-cyan/10 text-accent-cyan'
+                      : 'text-gray-400 hover:bg-surface-muted hover:text-white'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <ShieldCheck className={`h-4 w-4 ${isActive ? 'text-accent-cyan' : ''}`} />
+                    Usuarios RFID
+                    {isActive && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent-cyan" />
+                    )}
+                  </>
+                )}
+              </NavLink>
+              <NavLink
+                to="/admin/pipeline-rfid"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150
+                  ${
+                    isActive
+                      ? 'bg-accent-cyan/10 text-accent-cyan'
+                      : 'text-gray-400 hover:bg-surface-muted hover:text-white'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <KanbanSquare className={`h-4 w-4 ${isActive ? 'text-accent-cyan' : ''}`} />
+                    Pipeline RFID
+                    {isActive && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent-cyan" />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            </div>
+          )}
         </nav>
 
         {/* Footer */}
