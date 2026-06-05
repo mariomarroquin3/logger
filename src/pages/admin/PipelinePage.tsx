@@ -6,6 +6,7 @@ import { useState, useMemo } from 'react';
 import { useUsuariosRfid } from '../../hooks/useUsuariosRfid';
 import { useDashboard } from '../../context/DashboardProvider';
 import { useOperationalAlerts } from '../../hooks/useOperationalAlerts';
+import { useCredenciales } from '../../hooks/useCredenciales';
 import { useAuth } from '../../auth/AuthContext';
 import {
   updateRfidStatus,
@@ -69,6 +70,7 @@ export function PipelinePage() {
   const { usuarios, loading, error } = useUsuariosRfid();
   const { eventos } = useDashboard();
   const { alerts, criticalCount, warningCount } = useOperationalAlerts(usuarios, eventos);
+  const { disponibles: credencialesDisponibles } = useCredenciales();
 
   // Modales
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -246,6 +248,7 @@ export function PipelinePage() {
         isOpen={isFormOpen}
         usuario={selectedUser}
         existingUids={existingUids}
+        credencialesDisponibles={selectedUser ? [] : credencialesDisponibles}
         onSave={handleSaveUser}
         onClose={() => setIsFormOpen(false)}
       />

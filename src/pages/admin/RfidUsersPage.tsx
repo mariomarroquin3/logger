@@ -4,6 +4,7 @@
 // ============================================================
 import { useState, useMemo } from 'react';
 import { useUsuariosRfid } from '../../hooks/useUsuariosRfid';
+import { useCredenciales } from '../../hooks/useCredenciales';
 import { useAuth } from '../../auth/AuthContext';
 import {
   createUsuarioRFID,
@@ -11,6 +12,7 @@ import {
   deleteUsuarioRFID,
   toggleActivoUsuario,
 } from '../../services/rfidService';
+import { asignarCredencial } from '../../services/credencialesService';
 import { UserFormModal } from '../../components/admin/UserFormModal';
 import { ConfirmModal } from '../../components/admin/ConfirmModal';
 import {
@@ -32,6 +34,7 @@ import type { UsuarioRFID } from '../../types';
 export function RfidUsersPage() {
   const { user: currentUser } = useAuth();
   const { usuarios, loading, error } = useUsuariosRfid();
+  const { disponibles: credencialesDisponibles } = useCredenciales();
 
   // Búsqueda y filtrado
   const [search, setSearch] = useState('');
@@ -114,6 +117,8 @@ export function RfidUsersPage() {
           actorUid,
           actorNombre
         );
+        // Marcar credencial como asignada si existía en el inventario
+        await asignarCredencial(uid, data.nombre).catch(() => {});
         toast.success('Usuario creado con éxito');
       }
     } catch (err: unknown) {
@@ -438,6 +443,7 @@ export function RfidUsersPage() {
         isOpen={isFormOpen}
         usuario={selectedUser}
         existingUids={existingUids}
+        credencialesDisponibles={selectedUser ? [] : credencialesDisponibles}
         onSave={handleSaveUser}
         onClose={() => setIsFormOpen(false)}
       />

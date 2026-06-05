@@ -7,6 +7,7 @@
 import { ref, set, update, remove, push } from 'firebase/database';
 import { db } from '../firebase/config';
 import { auditLogsRef } from '../firebase/adminQueries';
+import { liberarCredencial } from './credencialesService';
 import type { UsuarioRFID, AuditLog, RfidStatus } from '../types';
 
 // ─── Audit log ───────────────────────────────────────────────
@@ -161,6 +162,10 @@ export async function deleteUsuarioRFID(
   actorUid: string,
   actorNombre: string,
 ): Promise<void> {
+  // Liberar credencial física ANTES de eliminar el usuario.
+  // Si el UID no existía en credenciales_rfid, liberarCredencial() retorna sin error.
+  await liberarCredencial(uid);
+
   await remove(ref(db, `usuarios_autorizados/${uid}`));
 
   await writeAuditLog({

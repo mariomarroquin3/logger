@@ -18,3 +18,6 @@ export const auditLogsQuery = query(
   orderByChild('timestamp'),
   limitToLast(200),
 );
+
+/** Inventario de chips RFID físicos — nodo separado, el ESP32 no lo lee */
+export const credencialesRfidRef = ref(db, 'credenciales_rfid');

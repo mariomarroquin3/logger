@@ -175,3 +175,40 @@ export interface DashboardUser {
   nombre: string;
   rol: Role;
 }
+
+// ─── Credenciales RFID físicas ───────────────────────────────
+
+/**
+ * Chip RFID físico registrado en el inventario.
+ * Nodo: credenciales_rfid/{uid}
+ * INDEPENDIENTE de usuarios_autorizados — el ESP32 no lo lee.
+ */
+export interface CredencialRFID {
+  uid: string;                     // key del nodo (HEX uppercase)
+  estado: 'disponible' | 'asignada';
+  fecha_registro: string;          // ISO 8601
+  asignada_a: string | null;       // nombre del usuario asignado o null
+}
+
+// ─── Comunicación Serial ──────────────────────────────────────
+
+export type SerialStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+/**
+ * Mensaje parseado del protocolo texto plano del ESP32.
+ * Formato wire: "TIPO|PAYLOAD\n"
+ */
+export interface SerialMessage {
+  type: 'granted' | 'denied' | 'warning' | 'uid_register';
+  payload: string;  // nombre, motivo, o UID según el tipo
+  timestamp: Date;
+}
+
+export interface SerialContextValue {
+  status: SerialStatus;
+  lastMessage: SerialMessage | null;
+  connect: () => Promise<void>;
+  disconnect: () => void;
+  send: (cmd: string) => void;
+  isSupported: boolean; // navigator.serial disponible en el browser
+}

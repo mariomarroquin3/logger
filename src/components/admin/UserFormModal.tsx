@@ -4,8 +4,8 @@
 // El UID es la key de Firebase — editable solo en creación.
 // ============================================================
 import { useState, useEffect, type FormEvent } from 'react';
-import { X, User, CreditCard, Building2, Briefcase, Mail, FileText, AlertCircle } from 'lucide-react';
-import type { UsuarioRFID, RfidStatus } from '../../types';
+import { X, User, CreditCard, Building2, Briefcase, Mail, FileText, AlertCircle, ChevronDown } from 'lucide-react';
+import type { UsuarioRFID, RfidStatus, CredencialRFID } from '../../types';
 
 const RFID_STATUS_OPTIONS: { value: RfidStatus; label: string }[] = [
   { value: 'pendiente',    label: 'Pendiente' },
@@ -20,6 +20,7 @@ interface UserFormModalProps {
   isOpen: boolean;
   usuario: UsuarioRFID | null; // null = modo creación
   existingUids: string[];       // para validar UID único en creación
+  credencialesDisponibles?: CredencialRFID[]; // chips listos para asignar
   onSave: (uid: string, data: Omit<UsuarioRFID, 'uid'>) => Promise<void>;
   onClose: () => void;
 }
@@ -46,7 +47,7 @@ const EMPTY: FormState = {
   activo: true,
 };
 
-export function UserFormModal({ isOpen, usuario, existingUids, onSave, onClose }: UserFormModalProps) {
+export function UserFormModal({ isOpen, usuario, existingUids, credencialesDisponibles = [], onSave, onClose }: UserFormModalProps) {
   const isEdit = !!usuario;
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -167,19 +168,45 @@ export function UserFormModal({ isOpen, usuario, existingUids, onSave, onClose }
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <CreditCard className="h-3.5 w-3.5" />
-                  UID RFID *
+                  Credencial RFID *
                 </label>
-                <input
-                  type="text"
-                  value={form.uid}
-                  onChange={set('uid')}
-                  placeholder="Ej: A1B2C3D4"
-                  maxLength={32}
-                  className="input font-mono"
-                />
-                <p className="text-[10px] text-gray-600">
-                  Hex del chip RFID — será la key permanente en Firebase.
-                </p>
+
+                {credencialesDisponibles.length > 0 ? (
+                  /* Selector de credenciales disponibles del inventario */
+                  <>
+                    <div className="relative">
+                      <select
+                        value={form.uid}
+                        onChange={set('uid')}
+                        className="input font-mono appearance-none pr-8"
+                      >
+                        <option value="">-- Selecciona una credencial disponible --</option>
+                        {credencialesDisponibles.map((c) => (
+                          <option key={c.uid} value={c.uid}>{c.uid}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                    </div>
+                    <p className="text-[10px] text-gray-600">
+                      {credencialesDisponibles.length} credencial{credencialesDisponibles.length !== 1 ? 'es' : ''} disponible{credencialesDisponibles.length !== 1 ? 's' : ''} en el inventario.
+                    </p>
+                  </>
+                ) : (
+                  /* Fallback: input libre cuando no hay credenciales en inventario */
+                  <>
+                    <input
+                      type="text"
+                      value={form.uid}
+                      onChange={set('uid')}
+                      placeholder="Ej: A1B2C3D4"
+                      maxLength={32}
+                      className="input font-mono"
+                    />
+                    <p className="text-[10px] text-amber-500/80">
+                      ⚠ No hay credenciales disponibles en el inventario. Registra una en la Estación RFID o ingresa el UID manualmente.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 

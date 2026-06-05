@@ -1,6 +1,7 @@
 // ============================================================
 // components/layout/Sidebar.tsx
-// Sidebar de navegación con soporte responsive (móvil colapsable)
+// Sidebar de navegación con soporte responsive (móvil colapsable).
+// Las rutas del dashboard viven bajo /dashboard/*.
 // ============================================================
 import { NavLink } from 'react-router-dom';
 import {
@@ -12,6 +13,8 @@ import {
   X,
   ShieldCheck,
   KanbanSquare,
+  CreditCard,
+  Radio,
 } from 'lucide-react';
 import { useDashboard } from '../../context/DashboardProvider';
 import { useAuth } from '../../auth/AuthContext';
@@ -22,15 +25,53 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { to: '/',          icon: LayoutDashboard, label: 'Dashboard'  },
-  { to: '/eventos',   icon: ClipboardList,   label: 'Eventos'    },
-  { to: '/graficas',  icon: BarChart3,       label: 'Gráficas'   },
-  { to: '/presencia', icon: Users,           label: 'Presencia'  },
+  { to: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard'  },
+  { to: '/dashboard/eventos',  icon: ClipboardList,   label: 'Eventos'    },
+  { to: '/dashboard/graficas', icon: BarChart3,        label: 'Gráficas'   },
+  { to: '/dashboard/presencia',icon: Users,            label: 'Presencia'  },
 ];
+
+const ADMIN_ITEMS = [
+  { to: '/dashboard/admin/usuarios-rfid',   icon: ShieldCheck,  label: 'Usuarios RFID'    },
+  { to: '/dashboard/admin/pipeline-rfid',   icon: KanbanSquare, label: 'Pipeline RFID'    },
+  { to: '/dashboard/admin/credenciales-rfid', icon: CreditCard, label: 'Credenciales RFID' },
+  { to: '/dashboard/admin/estacion-rfid',   icon: Radio,        label: 'Estación RFID'    },
+];
+
+function SideNavLink({ to, icon: Icon, label, onClose, end = false }: {
+  to: string; icon: React.ElementType; label: string; onClose: () => void; end?: boolean;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onClose}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150
+        ${
+          isActive
+            ? 'bg-accent-cyan/10 text-accent-cyan'
+            : 'text-gray-400 hover:bg-surface-muted hover:text-white'
+        }`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <Icon className={`h-4 w-4 ${isActive ? 'text-accent-cyan' : ''}`} />
+          {label}
+          {isActive && (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent-cyan" />
+          )}
+        </>
+      )}
+    </NavLink>
+  );
+}
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { isDemoMode, setIsDemoMode } = useDashboard();
   const { user } = useAuth();
+
   return (
     <>
       {/* Overlay móvil */}
@@ -75,31 +116,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">
             Monitoreo
           </p>
-          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-            <NavLink
+          {NAV_ITEMS.map(({ to, icon, label }) => (
+            <SideNavLink
               key={to}
               to={to}
-              end={to === '/'}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150
-                ${
-                  isActive
-                    ? 'bg-accent-cyan/10 text-accent-cyan'
-                    : 'text-gray-400 hover:bg-surface-muted hover:text-white'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-accent-cyan' : ''}`} />
-                  {label}
-                  {isActive && (
-                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent-cyan" />
-                  )}
-                </>
-              )}
-            </NavLink>
+              icon={icon}
+              label={label}
+              onClose={onClose}
+              end={to === '/dashboard'}
+            />
           ))}
 
           {user?.role === 'admin' && (
@@ -107,50 +132,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">
                 Administración
               </p>
-              <NavLink
-                to="/admin/usuarios-rfid"
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150
-                  ${
-                    isActive
-                      ? 'bg-accent-cyan/10 text-accent-cyan'
-                      : 'text-gray-400 hover:bg-surface-muted hover:text-white'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <ShieldCheck className={`h-4 w-4 ${isActive ? 'text-accent-cyan' : ''}`} />
-                    Usuarios RFID
-                    {isActive && (
-                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent-cyan" />
-                    )}
-                  </>
-                )}
-              </NavLink>
-              <NavLink
-                to="/admin/pipeline-rfid"
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150
-                  ${
-                    isActive
-                      ? 'bg-accent-cyan/10 text-accent-cyan'
-                      : 'text-gray-400 hover:bg-surface-muted hover:text-white'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <KanbanSquare className={`h-4 w-4 ${isActive ? 'text-accent-cyan' : ''}`} />
-                    Pipeline RFID
-                    {isActive && (
-                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent-cyan" />
-                    )}
-                  </>
-                )}
-              </NavLink>
+              {ADMIN_ITEMS.map(({ to, icon, label }) => (
+                <SideNavLink
+                  key={to}
+                  to={to}
+                  icon={icon}
+                  label={label}
+                  onClose={onClose}
+                />
+              ))}
             </div>
           )}
         </nav>
@@ -179,7 +169,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 <Wifi className="h-3 w-3 text-emerald-500" />
                 <span>Firebase Realtime DB</span>
               </div>
-              <p className="mt-1 text-[10px] text-gray-700">v1.0.0 · ESP32 RFID System</p>
+              <p className="mt-1 text-[10px] text-gray-700">v1.1.0 · ESP32 RFID System</p>
             </>
           )}
         </div>
