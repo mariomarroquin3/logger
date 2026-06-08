@@ -6,7 +6,7 @@
 // ============================================================
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Wifi, WifiOff, CheckCircle2, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { ShieldCheck, Wifi, CheckCircle2, XCircle, AlertTriangle, Clock, LogIn, LogOut, Plug } from 'lucide-react';
 import { useSerial } from '../context/SerialContext';
 import type { SerialMessage } from '../types';
 
@@ -27,11 +27,12 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 
 export function ReceptionPage() {
   const navigate = useNavigate();
-  const { status: serialStatus, lastMessage } = useSerial();
+  const { status: serialStatus, lastMessage, connect, disconnect, send, isSupported } = useSerial();
   const now = useClock();
 
   const [screen, setScreen] = useState<ScreenState>('idle');
   const [displayMsg, setDisplayMsg] = useState<SerialMessage | null>(null);
+  const [modoAcceso, setModoAcceso] = useState<'entrada' | 'salida'>('entrada');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reaccionar a mensajes del ESP32
@@ -112,12 +113,12 @@ export function ReceptionPage() {
 
   const serialBadge =
     serialStatus === 'connected'
-      ? { color: 'bg-emerald-500', pulse: true,  label: 'Lector Conectado' }
+      ? { color: 'bg-emerald-500', pulse: true,  label: 'Conectado' }
       : serialStatus === 'connecting'
       ? { color: 'bg-amber-500',   pulse: true,  label: 'Conectando...' }
       : serialStatus === 'error'
-      ? { color: 'bg-rose-500',    pulse: false, label: 'Error de Conexión' }
-      : { color: 'bg-gray-600',    pulse: false, label: 'Lector Desconectado' };
+      ? { color: 'bg-rose-500',    pulse: false, label: 'Error' }
+      : { color: 'bg-gray-600',    pulse: false, label: 'Desconectado' };
 
   return (
     <div
@@ -141,7 +142,7 @@ export function ReceptionPage() {
       )}
 
       {/* Header — Logo + Estado serial */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-8 py-6">
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-8 py-6 z-20">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-cyan/15 border border-accent-cyan/30">
             <ShieldCheck className="h-5 w-5 text-accent-cyan" />
@@ -152,9 +153,49 @@ export function ReceptionPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Estado serial */}
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 backdrop-blur-sm">
+        <div className="flex items-center gap-4">
+          {/* Controles de Modo (Entrada / Salida) */}
+          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur-sm">
+            <button
+              onClick={() => {
+                setModoAcceso('entrada');
+                if (serialStatus === 'connected' && modoAcceso !== 'entrada') {
+                  send('3');
+                }
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ${
+                modoAcceso === 'entrada'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'text-gray-400 hover:text-white border border-transparent'
+              }`}
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              Entrada
+            </button>
+            <button
+              onClick={() => {
+                setModoAcceso('salida');
+                if (serialStatus === 'connected' && modoAcceso !== 'salida') {
+                  send('3');
+                }
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ${
+                modoAcceso === 'salida'
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'text-gray-400 hover:text-white border border-transparent'
+              }`}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Salida
+            </button>
+          </div>
+
+          {/* Botón interactivo del Estado Serial */}
+          <button
+            onClick={serialStatus === 'connected' ? disconnect : connect}
+            disabled={!isSupported}
+            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 backdrop-blur-sm hover:bg-white/10 transition-all duration-300 active:scale-95 disabled:opacity-50"
+          >
             <span className="relative flex h-2 w-2">
               {serialBadge.pulse && (
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${serialBadge.color} opacity-75`} />
@@ -162,16 +203,17 @@ export function ReceptionPage() {
               <span className={`relative inline-flex rounded-full h-2 w-2 ${serialBadge.color}`} />
             </span>
             <span className="text-xs text-gray-300 font-medium">{serialBadge.label}</span>
-            {serialStatus === 'connected'
-              ? <Wifi className="h-3.5 w-3.5 text-emerald-400" />
-              : <WifiOff className="h-3.5 w-3.5 text-gray-500" />
-            }
-          </div>
+            {serialStatus === 'connected' ? (
+              <Wifi className="h-3.5 w-3.5 text-emerald-400" />
+            ) : (
+              <Plug className="h-3.5 w-3.5 text-gray-400 hover:text-white" />
+            )}
+          </button>
 
           {/* Acceso admin */}
           <button
             onClick={() => navigate('/login')}
-            className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors px-2 py-1 rounded"
+            className="text-xs text-gray-500 hover:text-white border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300 px-3 py-1.5 rounded-full backdrop-blur-sm"
           >
             Admin
           </button>
@@ -179,7 +221,7 @@ export function ReceptionPage() {
       </div>
 
       {/* Reloj y fecha */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 text-center">
+      <div className="absolute top-8 left-1/2 -translate-x-1/2 text-center z-10">
         <div className="flex items-center gap-2 justify-center text-gray-600 text-xs font-medium">
           <Clock className="h-3 w-3" />
           <span>{dateStr}</span>
@@ -209,14 +251,14 @@ export function ReceptionPage() {
               ACERQUE SU CREDENCIAL
             </h1>
             <p className="mt-3 text-base text-gray-600 font-medium tracking-widest uppercase">
-              Control de Acceso RFID — Listo
+              Modo Actual: {modoAcceso === 'entrada' ? 'Entrada' : 'Salida'} — Listo
             </p>
           </div>
         </div>
       ) : (
         /* Estado resultado */
         <div
-          className={`flex flex-col items-center gap-8 rounded-3xl border ${(cfg as { border?: string }).border ?? 'border-white/10'} bg-black/40 px-20 py-14 backdrop-blur-md ${(cfg as { glow?: string }).glow ?? ''} transition-all duration-500 animate-[fadeInScale_0.4s_ease-out]`}
+          className={`flex flex-col items-center gap-8 rounded-3xl border ${(cfg as { border?: string }).border ?? 'border-white/10'} bg-black/40 px-20 py-14 backdrop-blur-md ${(cfg as { glow?: string }).glow ?? ''} transition-all duration-500`}
           style={{ animation: 'fadeInScale 0.4s ease-out' }}
         >
           {/* Icono */}

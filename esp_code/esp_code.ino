@@ -25,6 +25,19 @@ const char* password = "Aprender!_sv";
 const String firebaseUrl = "https://access-log-c7bd1-default-rtdb.firebaseio.com/";
 
 // ===============================
+// CONFIGURACIÓN SERVOS CONTINUOS
+// ===============================
+Servo servoEntrada;
+Servo servoSalida;
+
+const int pinServoEntrada = 27; 
+const int pinServoSalida = 14;  
+
+const int tiempoGiro = 400;   
+const int velocidadAbrir = 110; 
+const int velocidadCerrar = 70; 
+
+// ===============================
 // CONFIGURACIÓN DE HORA (NTP)
 // ===============================
 const char* ntpServer = "pool.ntp.org";
@@ -41,18 +54,7 @@ const int   daylightOffset_sec = 0;
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 String inputData = ""; 
 
-// ===============================
-// CONFIGURACIÓN SERVOS CONTINUOS
-// ===============================
-Servo servoEntrada;
-Servo servoSalida;
 
-const int pinServoEntrada = 27; 
-const int pinServoSalida = 14;  
-
-const int tiempoGiro = 400;   
-const int velocidadAbrir = 110; 
-const int velocidadCerrar = 70; 
 
 String modoActual = "entrada"; 
 
