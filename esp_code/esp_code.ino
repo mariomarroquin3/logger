@@ -130,50 +130,76 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("\nMENU PRINCIPAL:");
-  Serial.println("1. Escribir en tarjeta (Limpiar nombre)");
-  Serial.print("2. Leer tarjeta (Modo actual: ");
-  Serial.print(modoActual);
-  Serial.println(")");
-  Serial.println("3. Cambiar modo (Entrada <-> Salida)");
-  Serial.println("4. Registrar credencial (debug)");
-  Serial.println("Cmd: REGISTRO (activacion Web Serial)");
-  Serial.print("Seleccione opcion o espere comando: ");
+  // 1. Mostrar menú solo periódicamente o cuando se requiera para evitar saturar el Serial
+  static unsigned long ultimoMenu = 0;
+  if (millis() - ultimoMenu > 1000 || ultimoMenu == 0) {
+    Serial.println("\nMENU PRINCIPAL (POLLEO ACTIVO):");
+    Serial.println("1. Escribir en tarjeta");
+    Serial.print("2. Leer tarjeta manualmente (Modo actual: ");
+    Serial.print(modoActual);
+    Serial.println(")");
+    Serial.println("3. Cambiar modo (Entrada <-> Salida)");
+    Serial.println("4. Registrar credencial (debug)");
+    Serial.println("Cmd: REGISTRO (activacion Web Serial)");
+    ultimoMenu = millis();
+  }
 
-  // Leer línea completa (compatible con commands Web Serial y terminal)
-  while (Serial.available() == 0) { }
-  String lineaRecibida = Serial.readStringUntil('\n');
-  lineaRecibida.trim();
+  // 2. Procesar comandos entrantes de forma no bloqueante
+  if (Serial.available() > 0) {
+    String lineaRecibida = Serial.readStringUntil('\n');
+    lineaRecibida.trim();
 
-  // Comando Web Serial principal: REGISTRO
-  if (lineaRecibida == "REGISTRO") {
-    registrarCredencial();
+    if (lineaRecibida == "REGISTRO") {
+      registrarCredencial();
+      ultimoMenu = 0;
+    }
+    else if (lineaRecibida == "1") {
+      escribirDatos();
+      actualizarPantallaBase();
+      ultimoMenu = 0;
+    }
+    else if (lineaRecibida == "2") {
+      Serial.println("[ESP32] Lectura iniciada");
+      leerDatosYEnviar();
+      ultimoMenu = 0;
+    }
+    else if (lineaRecibida == "3") {
+      modoActual = (modoActual == "entrada") ? "salida" : "entrada";
+      Serial.println("\n[MODO CAMBIADO] Ahora el sistema registrará: " + modoActual);
+      actualizarPantallaBase();
+      delay(1000);
+      ultimoMenu = 0;
+    }
+    else if (lineaRecibida == "4") {
+      Serial.println("[DEBUG] Activando modo registro...");
+      registrarCredencial();
+      ultimoMenu = 0;
+    }
   }
-  // Op 1 — Escribir datos
-  else if (lineaRecibida == "1") {
-    escribirDatos();
-    actualizarPantallaBase();
+
+  // 3. Polleo automático: Si se acerca una tarjeta, leerla inmediatamente
+  if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+    Serial.println("[ESP32] Lectura iniciada");
+    // Extraer el UID y procesar la tarjeta
+    String uidLeido = "";
+    for (byte i = 0; i < mfrc522.uid.size; i++) {
+      uidLeido += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
+      uidLeido += String(mfrc522.uid.uidByte[i], HEX);
+    }
+    uidLeido.toUpperCase();
+    
+    mfrc522.PICC_HaltA();
+    mfrc522.PCD_StopCrypto1();
+
+    Serial.println("-------------------------");
+    Serial.println("UID LEIDO (AUTO): " + uidLeido);
+    Serial.println("-------------------------");
+
+    procesarAccesoFirebase(uidLeido, modoActual);
+    ultimoMenu = 0;
   }
-  // Op 2 — Leer y registrar acceso
-  else if (lineaRecibida == "2") {
-    leerDatosYEnviar();
-  }
-  // Op 3 — Cambiar modo entrada/salida
-  else if (lineaRecibida == "3") {
-    modoActual = (modoActual == "entrada") ? "salida" : "entrada";
-    Serial.println("\n[MODO CAMBIADO] Ahora el sistema registrará: " + modoActual);
-    actualizarPantallaBase();
-    delay(1500);
-  }
-  // Op 4 — Alias de debug para REGISTRO
-  else if (lineaRecibida == "4") {
-    Serial.println("[DEBUG] Activando modo registro...");
-    registrarCredencial();
-  }
-  else {
-    Serial.println("\nComando no reconocido: " + lineaRecibida);
-    delay(500);
-  }
+  
+  delay(100); // Pequeño delay de cortesía para no saturar el procesador
 }
 
 // =================================================================

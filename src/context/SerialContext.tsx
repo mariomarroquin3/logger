@@ -138,6 +138,7 @@ export function SerialProvider({ children }: { children: ReactNode }) {
               const msg = parseSerialLine(trimmedLine);
               if (msg) {
                 console.log('[SerialContext] Mensaje del protocolo parseado con éxito:', msg);
+                console.log(`[SerialContext] Evento recibido: tipo=${msg.type} payload="${msg.payload}"`);
                 setLastMessage(msg);
               } else {
                 console.log(`[SerialContext] Línea omitida o no coincide con protocolo: "${trimmedLine}"`);

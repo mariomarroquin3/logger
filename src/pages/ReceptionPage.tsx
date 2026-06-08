@@ -61,6 +61,19 @@ export function ReceptionPage() {
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
+  const enviarComandoConLog = (cmd: string) => {
+    console.log(`[ReceptionPage] Comando enviado: ${cmd}`);
+    send(cmd);
+  };
+
+  // Handler para cambiar de modo e indicárselo al ESP32
+  const cambiarModoEspecial = (modo: 'entrada' | 'salida') => {
+    setModoAcceso(modo);
+    if (serialStatus === 'connected') {
+      enviarComandoConLog('3');
+    }
+  };
+
   // Formato de fecha/hora
   const timeStr = now.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   const dateStr = `${DIAS[now.getDay()]}, ${now.getDate()} de ${MESES[now.getMonth()]} de ${now.getFullYear()}`;
@@ -157,12 +170,7 @@ export function ReceptionPage() {
           {/* Controles de Modo (Entrada / Salida) */}
           <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur-sm">
             <button
-              onClick={() => {
-                setModoAcceso('entrada');
-                if (serialStatus === 'connected' && modoAcceso !== 'entrada') {
-                  send('3');
-                }
-              }}
+              onClick={() => cambiarModoEspecial('entrada')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ${
                 modoAcceso === 'entrada'
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -173,12 +181,7 @@ export function ReceptionPage() {
               Entrada
             </button>
             <button
-              onClick={() => {
-                setModoAcceso('salida');
-                if (serialStatus === 'connected' && modoAcceso !== 'salida') {
-                  send('3');
-                }
-              }}
+              onClick={() => cambiarModoEspecial('salida')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ${
                 modoAcceso === 'salida'
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
