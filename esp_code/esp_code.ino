@@ -8,16 +8,6 @@
 #include <ArduinoJson.h> // LIBRERÍA AGREGADA PARA PARSEO RELACIONAL
 
 // ===============================
-// LIBRERÍAS DE LA PANTALLA I2C
-// ===============================
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h>
-
-#define I2C_SDA 32
-#define I2C_SCL 33
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-
-// ===============================
 // CONFIGURACIÓN WIFI Y FIREBASE
 // ===============================
 const char* ssid = "EducacionSV";
@@ -53,16 +43,12 @@ const int   daylightOffset_sec = 0;
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 String inputData = ""; 
-
-
-
 String modoActual = "entrada"; 
 
 // ===============================
 // PROTOTIPO DE FUNCIONES
 // ===============================
 void registrarCredencial();
-void actualizarPantallaBase();
 void leerDatosYEnviar();
 void escribirDatos();
 
@@ -70,14 +56,6 @@ void setup() {
   Serial.begin(115200);
   while (!Serial); 
   delay(1000);
-
-  // --- INICIALIZAR PANTALLA ---
-  Wire.begin(I2C_SDA, I2C_SCL);
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Iniciando sist..");
 
   Serial.println("\n======================================");
   Serial.println("  SISTEMA: RFID + FIREBASE + SERVOS   ");
@@ -102,10 +80,6 @@ void setup() {
   Serial.print("Conectando a WiFi: ");
   Serial.println(ssid);
   
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Conectando WiFi");
-  
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -114,9 +88,6 @@ void setup() {
   Serial.println("\n[OK] WiFi conectado con éxito.");
 
   // 3. Sincronizar Reloj por Internet (NTP)
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Sincronizando...");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.println("[OK] Reloj sincronizado con servidor NTP.");
 
@@ -126,7 +97,6 @@ void setup() {
   mfrc522.PCD_Init();
   Serial.println("[OK] RFID RC522 listo en GPIO 26");
 
-  actualizarPantallaBase();
 }
 
 void loop() {
@@ -207,30 +177,20 @@ void loop() {
 // =================================================================
 void cicloPuerta(Servo &servoActivo, String mensajeAcceso) {
   Serial.println("\n[ AUTORIZADO ] " + mensajeAcceso);
-  
-  lcd.setCursor(0, 1);
-  lcd.print("Abriendo puerta ");
+
   
   Serial.println(" -> Abriendo barrera...");
   servoActivo.write(velocidadAbrir); 
   delay(tiempoGiro); 
   Serial.println(" -> Barrera abierta. Puede pasar.");
   servoActivo.write(90); 
-  
-  lcd.setCursor(0, 1);
-  lcd.print("Pase por favor  ");
   delay(3000);       
-  
-  Serial.println(" -> Cerrando barrera...");
-  lcd.setCursor(0, 1);
-  lcd.print("Cerrando puerta ");
-  
+  Serial.println(" -> Cerrando barrera...");  
   servoActivo.write(velocidadCerrar); 
   delay(tiempoGiro); 
   servoActivo.write(90); 
   Serial.println(" -> Barrera asegurada.");
   
-  actualizarPantallaBase();
 }
 
 // ===============================
@@ -259,11 +219,6 @@ void escribirDatos() {
   Serial.println("]");
   Serial.println("Acerca la tarjeta al lector para escribir...");
 
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Modo Escritura");
-  lcd.setCursor(0, 1);
-  lcd.print("Pase tarjeta...");
 
   while (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) { }
   
@@ -286,8 +241,6 @@ void escribirDatos() {
   status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(mfrc522.uid));
   if (status != MFRC522::STATUS_OK) {
     Serial.println("Error en autenticacion.");
-    lcd.clear();
-    lcd.print("Error Autentic.");
     delay(2000);
     mfrc522.PICC_HaltA();
     return;
@@ -295,9 +248,6 @@ void escribirDatos() {
   
   status = mfrc522.MIFARE_Write(block, buffer, 16);
   if (status == MFRC522::STATUS_OK) {
-    Serial.println("¡Datos escritos con exito!");
-    lcd.clear();
-    lcd.print("Escritura OK");
     delay(2000);
   }
   
@@ -313,10 +263,6 @@ void leerDatosYEnviar() {
   Serial.println("\nAcerca la tarjeta al lector para registrar " + modoActual + "...");
   
   while (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) { }
-
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Procesando...");
 
   // 1. EXTRAER SÓLO EL UID
   String uidLeido = "";
@@ -343,10 +289,7 @@ void leerDatosYEnviar() {
 void procesarAccesoFirebase(String uid, String tipoAcceso) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[ERROR] WiFi desconectado.");
-    lcd.clear();
-    lcd.print("Error: Sin WiFi");
     delay(2000);
-    actualizarPantallaBase();
     return;
   }
 
@@ -363,26 +306,16 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
 
   if (httpCode <= 0) {
     Serial.println("[ERROR HTTP] " + http.errorToString(httpCode));
-    lcd.clear();
-    lcd.print("Error Servidor");
     delay(2000);
-    actualizarPantallaBase();
     return;
   }
 
   // 2. VALIDAR SI EL USUARIO EXISTE
   if (payload == "null") {
-    Serial.println("[DENEGADO] UID no reconocido en la base de datos.");
-    
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Acceso Denegado");
-    lcd.setCursor(0, 1);
-    lcd.print("Desconocido");
-    
+    Serial.println("[DENEGADO] UID no reconocido en la base de datos.");    
     registrarEventoFisico(uid, "Desconocido", tipoAcceso, "denegado");
     delay(3000);
-    actualizarPantallaBase();
+   
     return;
   }
 
@@ -403,57 +336,30 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
   // 4. LÓGICA DE NEGOCIO (DENEGACIONES)
   if (!activo) {
     Serial.println("[DENEGADO] Usuario bloqueado: " + nombreUsuario);
-    
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Acceso Denegado");
-    lcd.setCursor(0, 1);
-    lcd.print("Usuario Bloquead");
-
     registrarEventoFisico(uid, nombreUsuario, tipoAcceso, "denegado");
     delay(3000);
-    actualizarPantallaBase();
+   
     return;
   }
 
   if (tipoAcceso == "entrada" && dentro) {
     Serial.println("[ERROR] El usuario ya se encuentra adentro.");
-    
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Error de Acceso");
-    lcd.setCursor(0, 1);
-    lcd.print("Ya esta dentro");
-
     registrarEventoFisico(uid, nombreUsuario, tipoAcceso, "inconsistente");
     delay(3000);
-    actualizarPantallaBase();
     return;
   }
 
   if (tipoAcceso == "salida" && !dentro) {
     Serial.println("[ERROR] No se registro entrada previa para este usuario.");
-    
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Error de Acceso");
-    lcd.setCursor(0, 1);
-    lcd.print("No registro ent.");
-
     registrarEventoFisico(uid, nombreUsuario, tipoAcceso, "inconsistente");
     delay(3000);
-    actualizarPantallaBase();
+
     return;
   }
 
   // 5. ACCESO CONCEDIDO
   Serial.println("[CONCEDIDO] Acceso validado para: " + nombreUsuario);
-  
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Acceso Concedido");
-  lcd.setCursor(0, 1);
-  lcd.print(nombreUsuario);
+
 
   // --- Actualizar Presencia en BD ---
   bool nuevoEstado = (tipoAcceso == "entrada");
@@ -572,21 +478,6 @@ void registrarEventoFisico(String uid, String nombre, String tipo, String result
   http.end();
 }
 
-// ===============================
-// FUNCIÓN AUXILIAR DE PANTALLA
-// ===============================
-void actualizarPantallaBase() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Sistema Listo");
-  lcd.setCursor(0, 1);
-  
-  if(modoActual == "entrada") {
-    lcd.print("Modo: Entrada");
-  } else {
-    lcd.print("Modo: Salida ");
-  }
-}
 
 // =================================================================
 // MODO REGISTRO — activado por comando REGISTRO vía Web Serial
@@ -596,11 +487,6 @@ void actualizarPantallaBase() {
 void registrarCredencial() {
   Serial.println("\n[MODO REGISTRO] Esperando tarjeta para registrar UID...");
   
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Modo Registro");
-  lcd.setCursor(0, 1);
-  lcd.print("Pase tarjeta...");
 
   // Timeout: ~30 segundos (300 iteraciones x 100ms)
   int timeout = 0;
@@ -611,7 +497,6 @@ void registrarCredencial() {
       cmd.trim();
       if (cmd == "CANCELAR") {
         Serial.println("[REGISTRO] Cancelado por comando.");
-        actualizarPantallaBase();
         return;
       }
     }
@@ -631,14 +516,8 @@ void registrarCredencial() {
       // Emitir protocolo hacia la aplicación React
       Serial.println("UID_REGISTER|" + uidLeido);
 
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("UID Registrado:");
-      lcd.setCursor(0, 1);
-      lcd.print(uidLeido.substring(0, 16));
       
       delay(2000);
-      actualizarPantallaBase();
       return; // Volver al loop principal
     }
 
@@ -648,11 +527,4 @@ void registrarCredencial() {
 
   // Timeout alcanzado sin detectar tarjeta
   Serial.println("[REGISTRO] Timeout. No se detectó tarjeta.");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Timeout");
-  lcd.setCursor(0, 1);
-  lcd.print("Sin tarjeta");
-  delay(2000);
-  actualizarPantallaBase();
 }
