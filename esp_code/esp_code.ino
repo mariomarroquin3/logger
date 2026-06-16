@@ -21,7 +21,7 @@ const int pinServoSalida = 14;
 
 const int tiempoGiro = 400;   
 const int velocidadAbrir = 120;
-const int velocidadCerrar = 70;
+const int velocidadCerrar = 68;
 
 
 const char* ntpServer = "pool.ntp.org";
