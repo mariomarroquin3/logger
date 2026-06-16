@@ -4,19 +4,15 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <ESP32Servo.h>
-#include <time.h> // Librería para obtener la hora real de internet
-#include <ArduinoJson.h> // LIBRERÍA AGREGADA PARA PARSEO RELACIONAL
+#include <time.h> 
+#include <ArduinoJson.h> 
 
-// ===============================
-// CONFIGURACIÓN WIFI Y FIREBASE
-// ===============================
+
 const char* ssid = "EducacionSV";
 const char* password = "Aprender!_sv";
 const String firebaseUrl = "https://access-log-c7bd1-default-rtdb.firebaseio.com/";
 
-// ===============================
-// CONFIGURACIÓN SERVOS CONTINUOS
-// ===============================
+
 Servo servoEntrada;
 Servo servoSalida;
 
@@ -24,30 +20,22 @@ const int pinServoEntrada = 27;
 const int pinServoSalida = 14;  
 
 const int tiempoGiro = 400;   
-const int velocidadAbrir = 110; 
-const int velocidadCerrar = 70; 
+const int velocidadAbrir = 120;
+const int velocidadCerrar = 70;
 
-// ===============================
-// CONFIGURACIÓN DE HORA (NTP)
-// ===============================
+
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = -21600; // Ajuste para Centroamérica (UTC-6)
+const long  gmtOffset_sec = -21600; 
 const int   daylightOffset_sec = 0;
 
-// ===============================
-// CONFIGURACIÓN RFID
-// ===============================
 #define SS_PIN    5   
 #define RST_PIN   21  
-#define pinBuzzer 4
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 String inputData = ""; 
 String modoActual = "entrada"; 
 
-// ===============================
-// PROTOTIPO DE FUNCIONES
-// ===============================
+
 void registrarCredencial();
 void leerDatosYEnviar();
 void escribirDatos();
@@ -61,7 +49,7 @@ void setup() {
   Serial.println("  SISTEMA: RFID + FIREBASE + SERVOS   ");
   Serial.println("======================================");
 
-  // 1. Inicializar Servos
+
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1); 
   
@@ -76,7 +64,6 @@ void setup() {
   delay(1000);
   Serial.println("[OK] Servos inicializados (Pines 12 y 13)");
 
-  // 2. Inicializar WiFi
   Serial.print("Conectando a WiFi: ");
   Serial.println(ssid);
   
@@ -87,20 +74,18 @@ void setup() {
   }
   Serial.println("\n[OK] WiFi conectado con éxito.");
 
-  // 3. Sincronizar Reloj por Internet (NTP)
+
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.println("[OK] Reloj sincronizado con servidor NTP.");
 
-  // 4. Inicializar bus SPI y Lector RFID
+
   Serial.println("Inicializando RC522...");
   SPI.begin(18, 19, 23, SS_PIN);
   mfrc522.PCD_Init();
   Serial.println("[OK] RFID RC522 listo en GPIO 26");
-
 }
 
 void loop() {
-  // 1. Mostrar menú solo periódicamente o cuando se requiera para evitar saturar el Serial
   static unsigned long ultimoMenu = 0;
   if (millis() - ultimoMenu > 1000 || ultimoMenu == 0) {
     Serial.println("\nMENU PRINCIPAL (POLLEO ACTIVO):");
@@ -114,7 +99,7 @@ void loop() {
     ultimoMenu = millis();
   }
 
-  // 2. Procesar comandos entrantes de forma no bloqueante
+
   if (Serial.available() > 0) {
     String lineaRecibida = Serial.readStringUntil('\n');
     lineaRecibida.trim();
@@ -125,7 +110,7 @@ void loop() {
     }
     else if (lineaRecibida == "1") {
       escribirDatos();
-      actualizarPantallaBase();
+
       ultimoMenu = 0;
     }
     else if (lineaRecibida == "2") {
@@ -136,7 +121,7 @@ void loop() {
     else if (lineaRecibida == "3") {
       modoActual = (modoActual == "entrada") ? "salida" : "entrada";
       Serial.println("\n[MODO CAMBIADO] Ahora el sistema registrará: " + modoActual);
-      actualizarPantallaBase();
+
       delay(1000);
       ultimoMenu = 0;
     }
@@ -147,10 +132,8 @@ void loop() {
     }
   }
 
-  // 3. Polleo automático: Si se acerca una tarjeta, leerla inmediatamente
   if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
     Serial.println("[ESP32] Lectura iniciada");
-    // Extraer el UID y procesar la tarjeta
     String uidLeido = "";
     for (byte i = 0; i < mfrc522.uid.size; i++) {
       uidLeido += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
@@ -169,12 +152,9 @@ void loop() {
     ultimoMenu = 0;
   }
   
-  delay(100); // Pequeño delay de cortesía para no saturar el procesador
+  delay(100);
 }
 
-// =================================================================
-// FUNCIÓN REUTILIZABLE DE PUERTAS
-// =================================================================
 void cicloPuerta(Servo &servoActivo, String mensajeAcceso) {
   Serial.println("\n[ AUTORIZADO ] " + mensajeAcceso);
 
@@ -193,9 +173,7 @@ void cicloPuerta(Servo &servoActivo, String mensajeAcceso) {
   
 }
 
-// ===============================
-// FUNCIÓN 1: ESCRIBIR DATOS (NO MODIFICADA)
-// ===============================
+
 void escribirDatos() {
   Serial.println("\nIngrese el nombre (max 15 caracteres, finalice con '#' ):");
   inputData = "";
@@ -225,11 +203,10 @@ void escribirDatos() {
   byte block = 1; 
   byte buffer[16];
   
-  // LLENAR CON ESPACIOS EN BLANCO PARA BORRAR BASURA PREVIA
+  
   for (int i = 0; i < 16; i++) {
     buffer[i] = ' '; 
   }
-  // COPIAR EL NOMBRE
   for (int i = 0; i < inputData.length(); i++) {
     buffer[i] = inputData.charAt(i);
   }
@@ -256,15 +233,11 @@ void escribirDatos() {
   delay(3000);
 }
 
-// ===============================
-// FUNCIÓN 2: LEER (REFACTORIZADA - SOLO UID)
-// ===============================
 void leerDatosYEnviar() {
   Serial.println("\nAcerca la tarjeta al lector para registrar " + modoActual + "...");
   
   while (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) { }
 
-  // 1. EXTRAER SÓLO EL UID
   String uidLeido = "";
   for (byte i = 0; i < mfrc522.uid.size; i++) {
     uidLeido += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
@@ -279,13 +252,11 @@ void leerDatosYEnviar() {
   Serial.println("UID LEIDO: " + uidLeido);
   Serial.println("-------------------------");
                  
-  // 2. PROCESAR ACCESO RELACIONAL EN FIREBASE
+
   procesarAccesoFirebase(uidLeido, modoActual);
 }
 
-// =================================================================
-// LÓGICA RELACIONAL JSON FIREBASE (ESTILO WOKWI)
-// =================================================================
+
 void procesarAccesoFirebase(String uid, String tipoAcceso) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[ERROR] WiFi desconectado.");
@@ -297,7 +268,7 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
   clienteSeguro.setInsecure(); 
   HTTPClient http;
 
-  // 1. OBTENER INFORMACIÓN DEL USUARIO (GET)
+
   String urlConsulta = firebaseUrl + "usuarios_autorizados/" + uid + ".json";
   http.begin(clienteSeguro, urlConsulta);
   int httpCode = http.GET();
@@ -310,7 +281,6 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
     return;
   }
 
-  // 2. VALIDAR SI EL USUARIO EXISTE
   if (payload == "null") {
     Serial.println("[DENEGADO] UID no reconocido en la base de datos.");    
     registrarEventoFisico(uid, "Desconocido", tipoAcceso, "denegado");
@@ -319,7 +289,6 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
     return;
   }
 
-  // 3. EXTRAER DATOS CON JSON
   StaticJsonDocument<256> doc;
   DeserializationError error = deserializeJson(doc, payload);
 
@@ -333,7 +302,6 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
     dentro = doc["dentro"] | false;
   }
 
-  // 4. LÓGICA DE NEGOCIO (DENEGACIONES)
   if (!activo) {
     Serial.println("[DENEGADO] Usuario bloqueado: " + nombreUsuario);
     registrarEventoFisico(uid, nombreUsuario, tipoAcceso, "denegado");
@@ -357,19 +325,15 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
     return;
   }
 
-  // 5. ACCESO CONCEDIDO
   Serial.println("[CONCEDIDO] Acceso validado para: " + nombreUsuario);
 
 
-  // --- Actualizar Presencia en BD ---
+
   bool nuevoEstado = (tipoAcceso == "entrada");
   actualizarPresenciaFisico(uid, nuevoEstado);
 
-  // --- Log de Acceso ---
   registrarEventoFisico(uid, nombreUsuario, tipoAcceso, "permitido");
 
-
-  // --- Acciones de Puerta y Maqueta ---
   actualizarEstadoMaquetaFisico(true); 
 
   if (tipoAcceso == "entrada") {
@@ -381,9 +345,6 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
   actualizarEstadoMaquetaFisico(false); 
 }
 
-// ===============================
-// PETICIONES FIREBASE AUXILIARES
-// ===============================
 
 void actualizarPresenciaFisico(String uid, bool dentro) {
   WiFiClientSecure clienteSeguro;
@@ -425,22 +386,18 @@ void registrarEventoFisico(String uid, String nombre, String tipo, String result
     return;
   }
 
-  // OBTENER LA HORA ACTUAL
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     Serial.println("[ERROR] No se pudo obtener la hora del sistema.");
     return;
   }
   
-  // Formatear Fecha (YYYY-MM-DD)
   char fechaStr[11];
   strftime(fechaStr, sizeof(fechaStr), "%Y-%m-%d", &timeinfo);
   
-  // Formatear Hora (HH:MM:SS)
   char horaStr[9];
   strftime(horaStr, sizeof(horaStr), "%H:%M:%S", &timeinfo);
   
-  // Obtener Timestamp exacto
   time_t now;
   time(&now);
 
@@ -452,7 +409,6 @@ void registrarEventoFisico(String uid, String nombre, String tipo, String result
   http.begin(clienteSeguro, url);
   http.addHeader("Content-Type", "application/json");
 
-  // CREAMOS EL JSON EXACTAMENTE IGUAL A TU IMAGEN 1
   String payload = "{"
                    "\"fecha\":\"" + String(fechaStr) + "\","
                    "\"hora\":\"" + String(horaStr) + "\","
@@ -478,20 +434,11 @@ void registrarEventoFisico(String uid, String nombre, String tipo, String result
   http.end();
 }
 
-
-// =================================================================
-// MODO REGISTRO — activado por comando REGISTRO vía Web Serial
-// NO registra evento, NO abre puerta, NO modifica Firebase.
-// Solo lee UID y emite: UID_REGISTER|XXXXXXXX
-// =================================================================
 void registrarCredencial() {
   Serial.println("\n[MODO REGISTRO] Esperando tarjeta para registrar UID...");
   
-
-  // Timeout: ~30 segundos (300 iteraciones x 100ms)
   int timeout = 0;
   while (timeout < 300) {
-    // Verificar si llega cancelación por Serial (comando CANCELAR)
     if (Serial.available()) {
       String cmd = Serial.readStringUntil('\n');
       cmd.trim();
@@ -502,7 +449,6 @@ void registrarCredencial() {
     }
 
     if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
-      // Tarjeta detectada
       String uidLeido = "";
       for (byte i = 0; i < mfrc522.uid.size; i++) {
         uidLeido += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
@@ -513,18 +459,15 @@ void registrarCredencial() {
       mfrc522.PICC_HaltA();
       mfrc522.PCD_StopCrypto1();
 
-      // Emitir protocolo hacia la aplicación React
       Serial.println("UID_REGISTER|" + uidLeido);
 
       
       delay(2000);
-      return; // Volver al loop principal
+      return; 
     }
 
     delay(100);
     timeout++;
   }
-
-  // Timeout alcanzado sin detectar tarjeta
   Serial.println("[REGISTRO] Timeout. No se detectó tarjeta.");
 }
