@@ -235,7 +235,6 @@ void escribirDatos() {
 
 void leerDatosYEnviar() {
   Serial.println("\nAcerca la tarjeta al lector para registrar " + modoActual + "...");
-  
   while (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) { }
 
   String uidLeido = "";
