@@ -47,10 +47,10 @@ export function TopUsersChart({ data }: Props) {
         <YAxis
           type="category"
           dataKey="nombre"
-          tick={{ fill: '#9ca3af', fontSize: 12 }}
+          tick={false}
           tickLine={false}
           axisLine={false}
-          width={70}
+          width={10}
         />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={20}>
