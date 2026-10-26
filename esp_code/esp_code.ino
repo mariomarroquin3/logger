@@ -265,19 +265,26 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
   Serial.printf("[DIAG] Inicio acceso: heapLibre=%u maxBloque=%u RSSI=%d\n",
                 ESP.getFreeHeap(), ESP.getMaxAllocHeap(), WiFi.RSSI());
 
-  WiFiClientSecure clienteSeguro;
-  clienteSeguro.setInsecure();
-  HTTPClient http;
-
-
   String urlConsulta = firebaseUrl + "usuarios_autorizados/" + uid + ".json";
-  http.begin(clienteSeguro, urlConsulta);
-  int httpCode = http.GET();
-  String payload = http.getString();
-  http.end();
+  int httpCode = -1;
+  String payload = "";
+
+  for (int intento = 1; intento <= 3 && httpCode <= 0; intento++) {
+    WiFiClientSecure clienteSeguro;
+    clienteSeguro.setInsecure();
+    HTTPClient http;
+    http.begin(clienteSeguro, urlConsulta);
+    httpCode = http.GET();
+    if (httpCode > 0) payload = http.getString();
+    http.end();
+    if (httpCode <= 0) {
+      Serial.println("[REINTENTO " + String(intento) + "/3] HTTP " + String(httpCode));
+      delay(500);
+    }
+  }
 
   if (httpCode <= 0) {
-    Serial.println("[ERROR HTTP] " + String(httpCode) + " " + http.errorToString(httpCode));
+    Serial.println("[ERROR HTTP] " + String(httpCode) + " " + HTTPClient::errorToString(httpCode));
     Serial.printf("[DIAG] WiFi=%d RSSI=%d heapLibre=%u maxBloque=%u\n",
                   WiFi.status(), WiFi.RSSI(), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
     delay(2000);
