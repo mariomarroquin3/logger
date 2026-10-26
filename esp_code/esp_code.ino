@@ -99,7 +99,6 @@ void loop() {
     ultimoMenu = millis();
   }
 
-
   if (Serial.available() > 0) {
     String lineaRecibida = Serial.readStringUntil('\n');
     lineaRecibida.trim();
@@ -263,8 +262,11 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
     return;
   }
 
+  Serial.printf("[DIAG] Inicio acceso: heapLibre=%u maxBloque=%u RSSI=%d\n",
+                ESP.getFreeHeap(), ESP.getMaxAllocHeap(), WiFi.RSSI());
+
   WiFiClientSecure clienteSeguro;
-  clienteSeguro.setInsecure(); 
+  clienteSeguro.setInsecure();
   HTTPClient http;
 
 
@@ -275,7 +277,9 @@ void procesarAccesoFirebase(String uid, String tipoAcceso) {
   http.end();
 
   if (httpCode <= 0) {
-    Serial.println("[ERROR HTTP] " + http.errorToString(httpCode));
+    Serial.println("[ERROR HTTP] " + String(httpCode) + " " + http.errorToString(httpCode));
+    Serial.printf("[DIAG] WiFi=%d RSSI=%d heapLibre=%u maxBloque=%u\n",
+                  WiFi.status(), WiFi.RSSI(), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
     delay(2000);
     return;
   }
@@ -427,7 +431,9 @@ void registrarEventoFisico(String uid, String nombre, String tipo, String result
     Serial.println("[FIREBASE] OK. Registro guardado."); 
   } else {
     Serial.print("[FIREBASE ERROR] ");
-    Serial.println(http.errorToString(httpCode).c_str());
+    Serial.println(String(httpCode) + " " + http.errorToString(httpCode));
+    Serial.printf("[DIAG] WiFi=%d RSSI=%d heapLibre=%u maxBloque=%u\n",
+                  WiFi.status(), WiFi.RSSI(), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
   }
 
   http.end();
